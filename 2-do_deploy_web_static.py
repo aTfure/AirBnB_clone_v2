@@ -1,41 +1,52 @@
 #!/usr/bin/python3
-""" Fabric script (based on the file 1-pack_web_static.py) that distributes an archive to your web servers, using the function do_deploy """
-
-from datetime import datetime
+"""
+generates .tgz archive and deploys
+"""
 from fabric.api import *
-import shlex
+from fabric.contrib.files import exists
+import datetime
 import os
 
 
-env.hosts = ['34.74.243.116', '3.239.3.209']
+env.hosts = ['54.208.104.108', '34.239.253.247']
 env.user = "ubuntu"
 
 
-def do_deploy(archive_path):
-    """ Deploys """
-    if not os.path.exists(archive_path):
-        return False
-    try:
-        name = archive_path.replace('/', ' ')
-        name = shlex.split(name)
-        name = name[-1]
+def do_pack():
+        """
+            packs content of web_static/ into a tgz archive
+                """
+                    now = datetime.datetime.now()
+                        tgz_path = 'versions/web_static_' + now.strftime('%Y%m%d%H%M%S') + '.tgz'
+                            tgz_cmd = 'tar -czpvf ' + tgz_path + ' web_static'
+                                local('sudo mkdir -p versions')
 
-        wname = name.replace('.', ' ')
-        wname = shlex.split(wname)
-        wname = wname[0]
+                                    if local(tgz_cmd).succeeded:
+                                                return tgz_path
+                                                return None
 
-        releases_path = "/data/web_static/releases/{}/".format(wname)
-        tmp_path = "/tmp/{}".format(name)
 
-        put(archive_path, "/tmp/")
-        run("mkdir -p {}".format(releases_path))
-        run("tar -xzf {} -C {}".format(tmp_path, releases_path))
-        run("rm {}".format(tmp_path))
-        run("mv {}web_static/* {}".format(releases_path, releases_path))
-        run("rm -rf {}web_static".format(releases_path))
-        run("rm -rf /data/web_static/current")
-        run("ln -s {} /data/web_static/current".format(releases_path))
-        print("New version deployed!")
-        return True
-    except:
-        return False
+                                            def do_deploy(archive_path):
+                                                    """
+                                                        uploads archive, uncompresses, and creates new symbolic links
+                                                            """
+                                                                if not os.path.isfile(archive_path):
+                                                                            return False
+                                                                            put(archive_path, "/tmp/")
+                                                                                splitpath = archive_path.split('/')
+                                                                                    cp_path = ' /data/web_static/releases/' + (splitpath[-1])[:-4]
+                                                                                        tmp_path = '/tmp/' + splitpath[-1]
+                                                                                            if sudo('mkdir -p ' + cp_path).failed:
+                                                                                                        return False
+                                                                                                        if sudo("tar -xvf " + tmp_path + ' -C' + cp_path).failed:
+                                                                                                                    return False
+                                                                                                                    if sudo('mv ' + cp_path + '/web_static/* ' + cp_path).failed:
+                                                                                                                                return False
+                                                                                                                                if sudo('rm -rf ' + cp_path + '/web_static').failed:
+                                                                                                                                            return False
+                                                                                                                                            if sudo('rm -rf /data/web_static/current').failed:
+                                                                                                                                                        return False
+                                                                                                                                                        if sudo('ln -s ' + cp_path + ' /data/web_static/current').failed:
+                                                                                                                                                                    return False
+                                                                                                                                                                    print('New version deployed!')
+                                                                                                                                                                        return True

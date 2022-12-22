@@ -8,7 +8,8 @@ import datetime
 import os
 
 
-env.hosts = ['35.196.70.29', '34.73.105.249']
+env.hosts = ['54.208.104.108', '34.239.253.247']
+env.user = "ubuntu"
 
 
 def do_pack():

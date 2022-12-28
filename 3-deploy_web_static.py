@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 """
-do_pack(): Generates a .tgz archive from the
-contents of the web_static folder
+do_pack(): Generates a .tgz archive from the contents of the web_static folder
 do_deploy(): Distributes an archive to a web server
 deploy (): Creates and distributes an archive to a web server
 """
@@ -20,13 +19,12 @@ def do_pack():
     """Function to compress files in an archive"""
     local("mkdir -p versions")
     filename = "versions/web_static_{}.tgz".format(datetime.strftime(
-                                                   datetime.now(),
-                                                   "%Y%m%d%H%M%S"))
-    result = local("tar -cvzf {} web_static"
-                   .format(filename))
+							datetime.now(),
+							"%Y%m%d%H%M%S"))
+    result = local("tar -cvzf {} web_static".format(filename))
     if result.failed:
-        return None
-    return filename
+      return None
+return filename
 
 
 def do_deploy(archive_path):

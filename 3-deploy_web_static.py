@@ -1,78 +1,78 @@
 #!/usr/bin/python3
-import os
+"""
+do_pack(): Generates a .tgz archive from the
+contents of the web_static folder
+do_deploy(): Distributes an archive to a web server
+deploy (): Creates and distributes an archive to a web server
+"""
+
+from fabric.operations import local, run, put
 from datetime import datetime
-from fabric.api import *
+import os
+from fabric.api import env
+import re
 
 
 env.hosts = ['54.208.104.108', '34.239.253.247']
 
 
 def do_pack():
-    """
-        Creating an archive with the file in web_static folder
-    """
-    now = datetime.now()
-    filename = "versions/web_static_{}{}{}{}{}{}.tgz".format(now.year,
-                                                             now.month,
-                                                             now.day,
-                                                             now.hour,
-                                                             now.minute,
-                                                             now.second)
-    print("Packing web_static to versions/{}".format(filename))
+    """Function to compress files in an archive"""
     local("mkdir -p versions")
-    result = local("tar -vczf {} web_static".format(filename))
-    if result.succeeded:
-        return (filename)
-    else:
+    filename = "versions/web_static_{}.tgz".format(datetime.strftime(
+                                                   datetime.now(),
+                                                   "%Y%m%d%H%M%S"))
+    result = local("tar -cvzf {} web_static"
+                   .format(filename))
+    if result.failed:
         return None
+    return filename
 
 
 def do_deploy(archive_path):
-    """
-        Deploys an archive to the web servers
-    """
-    name = archive_path.split("/")[1]
+    """Function to distribute an archive to a server"""
     if not os.path.exists(archive_path):
         return False
-
-    result = put(archive_path, "/tmp/")
-    if result.failed:
+    rex = r'^versions/(\S+).tgz'
+    match = re.search(rex, archive_path)
+    filename = match.group(1)
+    res = put(archive_path, "/tmp/{}.tgz".format(filename))
+    if res.failed:
         return False
-
-    run("mkdir -p /data/web_static/releases/{}".format(name[:-4]))
-
-    cmd = "tar -xzf /tmp/{} -C /data/web_static/releases/{}".format(name,
-                                                                    name[:-4])
-    result = run(cmd)
-    if result.failed:
+    res = run("mkdir -p /data/web_static/releases/{}/".format(filename))
+    if res.failed:
         return False
-
-    result = run("rm /tmp/{}".format(name))
-    if result.failed:
+    res = run("tar -xzf /tmp/{}.tgz -C /data/web_static/releases/{}/"
+              .format(filename, filename))
+    if res.failed:
         return False
-
-    run("cp -rp /data/web_static/releases/{}/web_static/*\
-        /data/web_static/releases/{}/".format(name[:-4], name[:-4]))
-
-    run("rm -rf /data/web_static/releases/{}/web_static/".format(name[:-4]))
-    result = run("rm /data/web_static/current")
-    if result.failed:
+    res = run("rm /tmp/{}.tgz".format(filename))
+    if res.failed:
         return False
-
-    path = "/data/web_static/releases/{}".format(name[:-4])
-    cmd = "ln -sf {} /data/web_static/current".format(path)
-    result = run(cmd)
-    if result.failed:
+    res = run("mv /data/web_static/releases/{}"
+              "/web_static/* /data/web_static/releases/{}/"
+              .format(filename, filename))
+    if res.failed:
         return False
+    res = run("rm -rf /data/web_static/releases/{}/web_static"
+              .format(filename))
+    if res.failed:
+        return False
+    res = run("rm -rf /data/web_static/current")
+    if res.failed:
+        return False
+    res = run("ln -s /data/web_static/releases/{}/ /data/web_static/current"
+              .format(filename))
+    if res.failed:
+        return False
+    print('New version deployed!')
     return True
 
 
 def deploy():
-    """
-        Interface for set-up functions
-    """
-    path = do_pack()
-    if path is None:
+    """Creates and distributes an archive to a web server"""
+    filepath = do_pack()
+    if filepath is None:
         return False
-    value = do_deploy(path)
-    return value
+    d = do_deploy(filepath)
+    return d
